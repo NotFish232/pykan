@@ -760,7 +760,7 @@ class KAN(nn.Module):
             plt.gcf().get_axes()[0].text(0.5, y0 * (len(self.width) - 1) + 0.2, title, fontsize=40 * scale, horizontalalignment='center', verticalalignment='center')
 
     def train(self, dataset, opt="LBFGS", steps=100, log=1, lamb=0., lamb_l1=1., lamb_entropy=2., lamb_coef=0., lamb_coefdiff=0., update_grid=True, grid_update_num=10, loss_fn=None, lr=1., stop_grid_update_step=50, batch=-1,
-              small_mag_threshold=1e-16, small_reg_factor=1., metrics=None, sglr_avoid=False, save_fig=False, in_vars=None, out_vars=None, beta=3, save_fig_freq=1, img_folder='./video', device='cpu'):
+              small_mag_threshold=1e-16, small_reg_factor=1., metrics=None, sglr_avoid=False, save_fig=False, in_vars=None, out_vars=None, beta=3, save_fig_freq=1, img_folder='./video', device='cpu', disable_pbar=False):
         '''
         training
 
@@ -841,7 +841,7 @@ class KAN(nn.Module):
 
             return reg_
 
-        pbar = tqdm(range(steps), desc='description', ncols=100)
+        pbar = tqdm(range(steps), desc='description', ncols=100, disable=disable_pbar)
 
         if loss_fn == None:
             loss_fn = loss_fn_eval = lambda x, y: torch.mean((x - y) ** 2)
