@@ -853,7 +853,7 @@ class KAN(nn.Module):
         if opt == "Adam":
             optimizer = torch.optim.Adam(self.parameters(), lr=lr)
         elif opt == "LBFGS":
-            optimizer = LBFGS(self.parameters(), lr=lr, history_size=10, line_search_fn="strong_wolfe", tolerance_grad=1e-32, tolerance_change=1e-32, tolerance_ys=1e-32)
+            optimizer = LBFGS(self.parameters(), lr=lr, max_iter=10, history_size=10, line_search_fn="strong_wolfe", tolerance_grad=1e-32, tolerance_change=1e-32, tolerance_ys=1e-32)
 
         results = {}
         results['train_loss'] = []
@@ -870,10 +870,10 @@ class KAN(nn.Module):
             batch_size = batch
             batch_size_test = batch
 
-        global train_loss, reg_
+        global train_loss, test_loss, reg_
 
         def closure():
-            global train_loss, reg_
+            global train_loss,test_loss,  reg_
             optimizer.zero_grad()
             pred = self.forward(dataset['train_input'][train_id].to(device))
             if sglr_avoid == True:
@@ -881,6 +881,13 @@ class KAN(nn.Module):
                 train_loss = loss_fn(pred[id_], dataset['train_label'][train_id][id_].to(device))
             else:
                 train_loss = loss_fn(pred, dataset['train_label'][train_id].to(device))
+            
+            with torch.no_grad():
+                test_loss = loss_fn_eval(self.forward(dataset['test_input'][test_id].to(device)), dataset['test_label'][test_id].to(device))
+
+            results['train_loss'].append(torch.sqrt(train_loss).cpu().detach().numpy())
+            results['test_loss'].append(torch.sqrt(test_loss).cpu().detach().numpy())
+
             reg_ = reg(self.acts_scale)
             objective = train_loss + lamb * reg_
             objective.backward()
@@ -914,17 +921,16 @@ class KAN(nn.Module):
                 loss.backward()
                 optimizer.step()
 
-            test_loss = loss_fn_eval(self.forward(dataset['test_input'][test_id].to(device)), dataset['test_label'][test_id].to(device))
-
+            
             if _ % log == 0:
                 pbar.set_description("train loss: %.2e | test loss: %.2e | reg: %.2e " % (torch.sqrt(train_loss).cpu().detach().numpy(), torch.sqrt(test_loss).cpu().detach().numpy(), reg_.cpu().detach().numpy()))
 
             if metrics != None:
                 for i in range(len(metrics)):
                     results[metrics[i].__name__].append(metrics[i]().item())
-
-            results['train_loss'].append(torch.sqrt(train_loss).cpu().detach().numpy())
-            results['test_loss'].append(torch.sqrt(test_loss).cpu().detach().numpy())
+      
+            # results['train_loss'].append(torch.sqrt(train_loss).cpu().detach().numpy())
+            # results['test_loss'].append(torch.sqrt(test_loss).cpu().detach().numpy())
             results['reg'].append(reg_.cpu().detach().numpy())
 
             if save_fig and _ % save_fig_freq == 0:
